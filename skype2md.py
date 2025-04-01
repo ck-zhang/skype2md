@@ -96,6 +96,14 @@ def main():
     quote_pattern = re.compile(
         r'<quote.*?authorname="(.*?)".*?>(.*?)</quote>', re.DOTALL
     )
+    partlist_pattern = re.compile(r"<partlist.*?>(.*?)</partlist>", re.DOTALL)
+    part_pattern = re.compile(
+        r'<part.*?identity="(.*?)".*?<name>(.*?)</name>.*?<duration>(.*?)</duration>.*?</part>',
+        re.DOTALL,
+    )
+    emoji_pattern = re.compile(r'<ss.*?utf="(.*?)".*?>.*?</ss>', re.DOTALL)
+    addmember_pattern = re.compile(r"<addmember>(.*?)</addmember>", re.DOTALL)
+    anchor_pattern = re.compile(r'<a href="(.*?)">(.*?)</a>', re.DOTALL)
 
     def convert_quote(m):
         author = m.group(1)
@@ -105,12 +113,6 @@ def main():
         ).strip()
         return f"> **Quoted from {author}**\n> {text.replace('\n', '\n> ')}"
 
-    partlist_pattern = re.compile(r"<partlist.*?>(.*?)</partlist>", re.DOTALL)
-    part_pattern = re.compile(
-        r'<part.*?identity="(.*?)".*?<name>(.*?)</name>.*?<duration>(.*?)</duration>.*?</part>',
-        re.DOTALL,
-    )
-
     def convert_partlist(m):
         inside = m.group(1)
         parts = part_pattern.findall(inside)
@@ -118,8 +120,6 @@ def main():
         for identity, name, duration in parts:
             lines.append(f"- {name} ({duration}s)")
         return "\n".join(lines)
-
-    emoji_pattern = re.compile(r'<ss.*?utf="(.*?)".*?>.*?</ss>', re.DOTALL)
 
     def convert_emoji(m):
         return m.group(1)
@@ -132,8 +132,6 @@ def main():
 
     def convert_strikethrough(m):
         return f"~~{m.group(1)}~~"
-
-    addmember_pattern = re.compile(r"<addmember>(.*?)</addmember>", re.DOTALL)
 
     def convert_addmember(m):
         inside = m.group(1)
@@ -157,18 +155,22 @@ def main():
         ]
         return "\n".join(lines)
 
+    def convert_anchor(m):
+        href = m.group(1)
+        text = m.group(2)
+        return f"[{text}]({href})"
+
     def convert_rich_text(content: str) -> str:
         content = quote_pattern.sub(convert_quote, content)
         content = partlist_pattern.sub(convert_partlist, content)
         content = addmember_pattern.sub(convert_addmember, content)
         content = emoji_pattern.sub(convert_emoji, content)
-
+        content = anchor_pattern.sub(convert_anchor, content)
         content = re.sub(r"<b[^>]*>(.*?)</b>", convert_bold, content, flags=re.DOTALL)
         content = re.sub(r"<i[^>]*>(.*?)</i>", convert_italic, content, flags=re.DOTALL)
         content = re.sub(
             r"<s[^>]*>(.*?)</s>", convert_strikethrough, content, flags=re.DOTALL
         )
-
         return content
 
     def doc_id_to_md_link(doc_id: str) -> str:
