@@ -184,6 +184,8 @@ def main():
 
     processed_msgs = []
     for msg in message_list:
+        if msg.get("messagetype") == "RichText/Media_Album":
+            continue
         raw_ts = msg.get("originalarrivaltime", "")
         dt_local = parse_iso_to_local(raw_ts)
 
